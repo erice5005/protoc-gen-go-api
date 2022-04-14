@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"google.golang.org/protobuf/compiler/protogen"
@@ -73,8 +74,12 @@ func messageToFormat(m *protogen.Message) GeneratableMessage {
 	}
 
 	for _, fx := range m.Fields {
+		// if fx.
+		if fx.Message != nil {
+			log.Printf("FX: %v\n", fx)
+		}
 		mf := MessageField{
-			Name:     capitalize(string(fx.Desc.Name())),
+			Name:     fx.GoName,
 			JSONName: fx.Desc.JSONName(),
 			Kind:     fx.Desc.Kind().String(),
 		}
@@ -142,4 +147,17 @@ func makeSetter(fx MessageField, objName string) []string {
 		"}",
 	)
 	return output
+}
+
+func kindToGoKind(protoKind string) string {
+	switch protoKind {
+	case "string":
+		return "string"
+	case "int32":
+		return "int32"
+	case "int64":
+		return "int64"
+	case "double":
+		return "float64"
+	}
 }
