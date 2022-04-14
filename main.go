@@ -81,7 +81,7 @@ func messageToFormat(m *protogen.Message) GeneratableMessage {
 		mf := MessageField{
 			Name:     fx.GoName,
 			JSONName: fx.Desc.JSONName(),
-			Kind:     fx.Desc.Kind().String(),
+			Kind:     kindToGoKind(fx.Desc.Kind().String()),
 		}
 		mx.Fields = append(mx.Fields, mf)
 	}
