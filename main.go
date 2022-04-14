@@ -38,6 +38,21 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 }
 
 func messageToStruct(m *protogen.Message) []string {
+
+	st := generateStruct(m)
+	getters := makeGetters(m)
+
+	content := make([]string, 0)
+	content = append(content, st...)
+	content = append(content, getters...)
+	return content
+}
+
+func capitalize(inp string) string {
+	return fmt.Sprintf("%v%v", strings.ToUpper(string(inp[0])), inp[1:])
+}
+
+func generateStruct(m *protogen.Message) []string {
 	stringRows := make([]string, 0)
 	structName := strings.Replace(string(m.Desc.FullName()), "api.", "", 1)
 
@@ -53,10 +68,26 @@ func messageToStruct(m *protogen.Message) []string {
 	)
 	stringRows = append(stringRows, dataRows...)
 	stringRows = append(stringRows, "}")
+	return stringRows
+}
+
+func makeGetters(m *protogen.Message) []string {
+	stringRows := make([]string, 0)
+
+	for _, fx := range m.Fields {
+		stringRows = append(stringRows, makeGetter(fx, string(m.Desc.Name()))...)
+	}
 
 	return stringRows
 }
 
-func capitalize(inp string) string {
-	return fmt.Sprintf("%v%v", strings.ToUpper(string(inp[0])), inp[1:])
+func makeGetter(fx *protogen.Field, objName string) []string {
+	output := make([]string, 0)
+	output = append(output,
+		fmt.Sprintf("func (%v *%v) Get%v() %v {", strings.ToLower(string(objName[0])), capitalize(objName), fx.Desc.Name(), fx.Desc.Kind()),
+		fmt.Sprintf("return %v.%v", strings.ToLower(string(objName[0])), fx.Desc.Name()),
+		"}",
+	)
+	return output
+	// content := fmt.Sprintf("func (%v *%v) Get%v() %v {\n return %v.%v\n}",  )
 }
