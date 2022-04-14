@@ -39,12 +39,16 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 
 func messageToStruct(m *protogen.Message) []string {
 
-	st := generateStruct(m)
-	getters := makeGetters(m)
+	mf := messageToFormat(m)
+
+	st := generateStruct(mf)
+	getters := makeGetters(mf)
+	setters := makeSetters(mf)
 
 	content := make([]string, 0)
 	content = append(content, st...)
 	content = append(content, getters...)
+	content = append(content, setters...)
 	return content
 }
 
@@ -52,42 +56,90 @@ func capitalize(inp string) string {
 	return fmt.Sprintf("%v%v", strings.ToUpper(string(inp[0])), inp[1:])
 }
 
-func generateStruct(m *protogen.Message) []string {
+type GeneratableMessage struct {
+	StructName string
+	Fields     []MessageField
+}
+type MessageField struct {
+	Name     string
+	JSONName string
+	Kind     string
+}
+
+func messageToFormat(m *protogen.Message) GeneratableMessage {
+	mx := GeneratableMessage{
+		StructName: strings.Replace(string(m.Desc.FullName()), "api.", "", 1),
+		Fields:     make([]MessageField, 0),
+	}
+
+	for _, fx := range m.Fields {
+		mf := MessageField{
+			Name:     capitalize(string(fx.Desc.Name())),
+			JSONName: fx.Desc.JSONName(),
+			Kind:     fx.Desc.Kind().String(),
+		}
+		mx.Fields = append(mx.Fields, mf)
+	}
+
+	return mx
+}
+
+func generateStruct(m GeneratableMessage) []string {
 	stringRows := make([]string, 0)
-	structName := strings.Replace(string(m.Desc.FullName()), "api.", "", 1)
+	// structName := strings.Replace(string(m.Desc.FullName()), "api.", "", 1)
 
 	dataRows := make([]string, 0)
 	for _, fx := range m.Fields {
 		dataRows = append(dataRows,
-			fmt.Sprintf("%v %v `json:\"%v\"`", capitalize(string(fx.Desc.Name())), fx.Desc.Kind(), fx.Desc.JSONName()),
+			fmt.Sprintf("%v %v `json:\"%v\"`", fx.Name, fx.Kind, fx.JSONName),
 		)
 	}
 
 	stringRows = append(stringRows,
-		fmt.Sprintf("type %v struct {", structName),
+		fmt.Sprintf("type %v struct {", m.StructName),
 	)
 	stringRows = append(stringRows, dataRows...)
 	stringRows = append(stringRows, "}")
 	return stringRows
 }
 
-func makeGetters(m *protogen.Message) []string {
+func makeGetters(m GeneratableMessage) []string {
 	stringRows := make([]string, 0)
 
 	for _, fx := range m.Fields {
-		stringRows = append(stringRows, makeGetter(fx, string(m.Desc.Name()))...)
+		stringRows = append(stringRows, makeGetter(fx, m.StructName)...)
 	}
 
 	return stringRows
 }
 
-func makeGetter(fx *protogen.Field, objName string) []string {
+func makeGetter(fx MessageField, objName string) []string {
 	output := make([]string, 0)
 	output = append(output,
-		fmt.Sprintf("func (%v *%v) Get%v() %v {", strings.ToLower(string(objName[0])), capitalize(objName), fx.Desc.Name(), fx.Desc.Kind()),
-		fmt.Sprintf("return %v.%v", strings.ToLower(string(objName[0])), fx.Desc.Name()),
+		fmt.Sprintf("func (%v *%v) Get%v() %v {", strings.ToLower(string(objName[0])), capitalize(objName), fx.Name, fx.Kind),
+		fmt.Sprintf("return %v.%v", strings.ToLower(string(objName[0])), fx.Name),
 		"}",
 	)
 	return output
 	// content := fmt.Sprintf("func (%v *%v) Get%v() %v {\n return %v.%v\n}",  )
+}
+
+func makeSetters(m GeneratableMessage) []string {
+	stringRows := make([]string, 0)
+
+	for _, fx := range m.Fields {
+		stringRows = append(stringRows, makeSetter(fx, m.StructName)...)
+	}
+
+	return stringRows
+}
+
+func makeSetter(fx MessageField, objName string) []string {
+	output := make([]string, 0)
+	output = append(output,
+		fmt.Sprintf("func (%v *%v) Set%v(val %v) {", strings.ToLower(string(objName[0])), capitalize(objName), fx.Name, fx.Kind),
+		fmt.Sprintf("%v.%v = val", strings.ToLower(string(objName[0])), fx.Name),
+		"}",
+	)
+	return output
 }
