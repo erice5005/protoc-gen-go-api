@@ -91,7 +91,7 @@ func messageToFormat(m *protogen.Message, protoName string) GeneratableMessage {
 		Fields:     make([]MessageField, 0),
 		RootProto:  m,
 	}
-
+	log.Printf("Field Length: %v\n", len(m.Fields))
 	for _, fx := range m.Fields {
 		// if fx.
 		fName := strings.ToLower(strings.Join(camelcase.Split(fx.Desc.JSONName()), "_"))
